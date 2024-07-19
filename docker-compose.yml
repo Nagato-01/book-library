@@ -1,0 +1,81 @@
+version: '3'
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "4200:4200"
+    env_file:
+      - ./backend/.env 
+    # environment:
+    #   - DATABASE_HOST=mysql
+    #   - DATABASE_USER=root
+    #   - DATABASE_PASSWORD=rootpassword
+    #   - DATABASE_NAME=booklibrary
+    #   - PORT=3307
+    depends_on:
+      - mysql
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`backend.local`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=4200"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`frontend.local`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: booklibrary
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+
+  mysql-exporter:
+    image: prom/mysqld-exporter
+    environment:
+      DATA_SOURCE_NAME: "root:rootpassword@(mysql:3306)/"
+    ports:
+      - "9104:9104"
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+  backup:
+    build: ./backup
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./backups:/backup
+    depends_on:
+      - mysql
+
+  traefik:
+    image: traefik:v2.5
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik.toml:/etc/traefik/traefik.toml
+
+volumes:
+  mysql-data:
+  grafana-data:
