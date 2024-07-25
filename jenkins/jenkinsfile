@@ -1,0 +1,79 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Optimize Assets') {
+            steps {
+                script {
+                    sh 'cd frontend && npm run optimize'
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                script {
+                    sh './scripts/build.sh'
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                script {
+                    sh './scripts/test.sh'
+                }
+            }
+        }
+
+        stage('Deploy to Dev') {
+            steps {
+                script {
+                    sh './scripts/deploy.sh'
+                }
+            }
+        }
+
+        stage('Deploy to Pre-Prod') {
+            steps {
+                input message: 'Deploy to Pre-Prod?', ok: 'Deploy'
+                script {
+                    // Vous pouvez ajouter ici des commandes spécifiques pour pré-production
+                    echo "Déploiement en pré-production..."
+                }
+            }
+        }
+
+        stage('Deploy to Prod') {
+            steps {
+                input message: 'Deploy to Production?', ok: 'Deploy'
+                script {
+                    // Vous pouvez ajouter ici des commandes spécifiques pour production
+                    echo "Déploiement en production..."
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: '**/test-results/*.xml', allowEmptyArchive: true
+        }
+        success {
+            echo 'Pipeline succeeded!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
